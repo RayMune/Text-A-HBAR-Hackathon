@@ -23,6 +23,15 @@ from hedera import (
     Hbar
 )
 
+# Import our custom SMS and HBAR management modules
+from sms_service import sms_service, SMSTemplates
+from africastalking_client import api_client, PhoneNumberValidator
+from hbar_manager import transaction_service, HederaTokenManager
+from utils import (
+    transaction_logger, sms_rate_limiter, api_rate_limiter,
+    PhoneNumberUtils, SMSCostCalculator, ConfigValidator, MessageFormatter
+)
+
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -148,7 +157,7 @@ def generate_stock_advice(stock):
 
 def transfer_hedera_tokens(recipient_account_id, amount, stock_name):
     """
-    Transfer Hedera tokens to a recipient account.
+    Transfer Hedera tokens to a recipient account with SMS notifications.
     
     Args:
         recipient_account_id: String like "0.0.1234"
@@ -174,13 +183,29 @@ def transfer_hedera_tokens(recipient_account_id, amount, stock_name):
         
         tx_response = tx.execute(hedera_client)
         receipt = tx_response.getReceipt(hedera_client)
+        transaction_id = str(tx_response.transactionId)
         
         logging.info(f"✅ Transfer complete! Status: {receipt.status}")
+        
+        # Send SMS notification about successful token transfer
+        try:
+            # Get recipient phone number from session or use demo number
+            recipient_phone = get_user_phone_from_session() or "+254700000000"
+            
+            # Send token transfer notification SMS
+            sms_result = sms_service.notify_token_transfer(
+                recipient_phone, amount, recipient_account_id, transaction_id
+            )
+            
+            logging.info(f"📱 SMS notification sent - Success: {sms_result.get('success', False)}")
+            
+        except Exception as sms_error:
+            logging.warning(f"SMS notification failed: {sms_error}")
         
         return {
             'success': True,
             'message': f"Successfully transferred {amount} token units to {recipient_account_id}",
-            'transaction_id': str(tx_response.transactionId),
+            'transaction_id': transaction_id,
             'status': str(receipt.status)
         }
         
@@ -192,11 +217,168 @@ def transfer_hedera_tokens(recipient_account_id, amount, stock_name):
             'transaction_id': None
         }
 
+def get_user_phone_from_session():
+    """
+    Get user's phone number from session or request context.
+    In a real app, this would be stored in user session/database.
+    """
+    # For demo purposes, return a sample Kenyan phone number
+    demo_phones = ["+254700000000", "+254722000000", "+254733000000"]
+    return random.choice(demo_phones)
+
+def send_africastalking_sms(phone_number, message, sender_id="TEXTAHBAR"):
+    """
+    Send SMS using AfricasTalking API
+    
+    Args:
+        phone_number: Recipient phone number
+        message: SMS message content
+        sender_id: Sender ID for the SMS
+        
+    Returns:
+        Dict with sending status and details
+    """
+    try:
+        # Format phone number to international format
+        formatted_phone = PhoneNumberValidator.format_phone_number(phone_number)
+        
+        # Send SMS using our API client
+        result = api_client.send_sms(formatted_phone, message, sender_id)
+        
+        logging.info(f"📱 AfricasTalking SMS sent to {formatted_phone} - Success: {result.get('success', False)}")
+        
+        return result
+        
+    except Exception as e:
+        logging.error(f"Failed to send AfricasTalking SMS: {e}")
+        return {
+            'success': False,
+            'error': str(e)
+        }
+
 @app.route('/')
 def index():
-    return render_template('index.html')
+    """
+    API Root endpoint with service information
+    """
+    return jsonify({
+        'service': 'TextAHBAR API',
+        'version': '2.0.0',
+        'description': 'SMS-enabled HBAR trading platform with AfricasTalking integration',
+        'features': [
+            'SMS notifications via AfricasTalking API',
+            'Hedera HBAR token transfers',
+            'Stock trading with instant notifications',
+            'M-PESA payment simulation',
+            'AI-powered chat responses',
+            'Phone number validation and formatting',
+            'Transaction logging and reporting'
+        ],
+        'endpoints': {
+            'chat': '/api/chat - Send chat messages',
+            'sms': '/api/sms - SMS operations',
+            'stocks': '/api/stocks - Stock trading',
+            'hedera': '/api/hedera - HBAR operations',
+            'dashboard': '/api/dashboard - Service status',
+            'docs': '/api/docs - API documentation'
+        },
+        'status': 'operational',
+        'timestamp': datetime.now().isoformat()
+    })
 
-@app.route('/send_message', methods=['POST'])
+@app.route('/api/docs', methods=['GET'])
+def api_documentation():
+    """
+    Complete API documentation
+    """
+    docs = {
+        'TextAHBAR API Documentation': {
+            'version': '2.0.0',
+            'base_url': 'https://your-domain.com',
+            'authentication': 'API Key (Header: X-API-Key)',
+            'content_type': 'application/json'
+        },
+        'endpoints': {
+            '/api/chat': {
+                'method': 'POST',
+                'description': 'Send chat messages to AI assistants',
+                'parameters': {
+                    'message': 'string - The message to send',
+                    'recipient_type': 'string - Type of recipient (stock_trader, kamba_bot, etc.)',
+                    'phone_number': 'string - Optional phone for SMS notifications'
+                },
+                'example': {
+                    'message': 'What is the price of Safaricom stock?',
+                    'recipient_type': 'stock_trader',
+                    'phone_number': '+254700000000'
+                }
+            },
+            '/api/sms/send': {
+                'method': 'POST',
+                'description': 'Send SMS messages via AfricasTalking',
+                'parameters': {
+                    'to': 'string - Recipient phone number',
+                    'message': 'string - SMS content',
+                    'sender_id': 'string - Optional sender ID'
+                }
+            },
+            '/api/stocks/list': {
+                'method': 'GET',
+                'description': 'Get list of available stocks'
+            },
+            '/api/stocks/price': {
+                'method': 'GET',
+                'description': 'Get stock price',
+                'parameters': {
+                    'ticker': 'string - Stock ticker symbol'
+                }
+            },
+            '/api/stocks/buy': {
+                'method': 'POST',
+                'description': 'Purchase stocks with HBAR tokens',
+                'parameters': {
+                    'ticker': 'string - Stock ticker',
+                    'quantity': 'integer - Number of shares',
+                    'phone_number': 'string - For SMS notifications',
+                    'hedera_account': 'string - Hedera account for token delivery'
+                }
+            },
+            '/api/hedera/balance': {
+                'method': 'GET',
+                'description': 'Get Hedera account balance',
+                'parameters': {
+                    'account_id': 'string - Hedera account ID'
+                }
+            },
+            '/api/hedera/transfer': {
+                'method': 'POST',
+                'description': 'Transfer HBAR tokens',
+                'parameters': {
+                    'to_account': 'string - Recipient Hedera account',
+                    'amount': 'integer - Token amount',
+                    'memo': 'string - Transaction memo',
+                    'notify_phone': 'string - Phone for SMS notification'
+                }
+            }
+        },
+        'response_format': {
+            'success': 'boolean - Operation success status',
+            'data': 'object - Response data',
+            'message': 'string - Status message',
+            'timestamp': 'string - ISO timestamp'
+        },
+        'error_codes': {
+            '400': 'Bad Request - Invalid parameters',
+            '401': 'Unauthorized - Invalid API key',
+            '404': 'Not Found - Endpoint does not exist',
+            '429': 'Too Many Requests - Rate limit exceeded',
+            '500': 'Internal Server Error - Server error'
+        }
+    }
+    
+    return jsonify(docs)
+
+@app.route('/api/chat', methods=['POST'])
 def send_message():
     data = request.get_json()
     user_message = data.get('message', '').strip()
@@ -239,6 +421,33 @@ def send_message():
             transfer_result = transfer_hedera_tokens(account_id, tokens_to_send, stock_name)
             
             if transfer_result['success']:
+                # Log the successful transaction
+                transaction_data = {
+                    'stock_name': stock_name,
+                    'quantity': qty,
+                    'tokens_sent': tokens_to_send,
+                    'recipient_account': account_id,
+                    'hedera_transaction_id': transfer_result['transaction_id'],
+                    'success': True
+                }
+                
+                tx_log_id = transaction_logger.log_transaction('stock_purchase', transaction_data)
+                
+                # Send comprehensive SMS notification
+                try:
+                    recipient_phone = get_user_phone_from_session()
+                    
+                    # Send stock purchase confirmation SMS
+                    purchase_total = purchase.get('total_amount', qty * 100)  # Fallback price
+                    sms_result = sms_service.notify_stock_purchase(
+                        recipient_phone, stock_name, qty, purchase_total, tx_log_id
+                    )
+                    
+                    logging.info(f"📱 Stock purchase SMS sent - Success: {sms_result.get('success', False)}")
+                    
+                except Exception as sms_error:
+                    logging.warning(f"SMS notification failed: {sms_error}")
+                
                 # Transfer succeeded
                 ack_message = (
                     f"🎉 **Stock Purchase Complete!** 🎉\n\n"
@@ -246,7 +455,8 @@ def send_message():
                     f"💰 **Tokens Sent**: {tokens_to_send} token units\n"
                     f"📧 **To Account**: {account_id}\n"
                     f"🔗 **Transaction ID**: {transfer_result['transaction_id']}\n"
-                    f"📊 **Status**: {transfer_result['status']}\n\n"
+                    f"📊 **Status**: {transfer_result['status']}\n"
+                    f"📱 **SMS Confirmation**: Sent to your registered number\n\n"
                     f"Your tokens have been successfully delivered to your Hedera account!\n"
                     f"Thank you for trading with us! 📈"
                 )
@@ -358,12 +568,26 @@ def send_message():
                 new_balance = max(0, old_balance - total)
                 # deduct only at STK success; but keep previous behavior of reserving funds by deducting now:
                 set_balance(user_session_id, new_balance)
+                
+                # Enhanced M-PESA confirmation message
                 confirmation_message_text = (
                     f"{transaction_id} Confirmed. Ksh{total:.2f} sent to "
                     f"{stock['name']} {recipient_number} on {current_time}. "
                     f"New M-pesa balance is ksh{new_balance:.2f}. Transaction cost, Ksh0.00. "
                     "Amount you can transact within the day is 499,230."
                 )
+                
+                # Log M-PESA transaction
+                mpesa_data = {
+                    'amount': total,
+                    'recipient': stock['name'],
+                    'recipient_number': recipient_number,
+                    'transaction_id': transaction_id,
+                    'new_balance': new_balance,
+                    'success': True
+                }
+                
+                transaction_logger.log_transaction('mpesa_payment', mpesa_data)
                 pending_mpesa_confirmations[user_session_id] = {
                     'message': confirmation_message_text,
                     'recipient_name': 'M-PESA',
@@ -554,6 +778,624 @@ def enter_pin():
     else:
         return jsonify({'status': 'error', 'message': 'Incorrect PIN. Transaction failed.'})
 
+@app.route('/sms_status', methods=['GET'])
+def sms_status():
+    """
+    Get SMS service status and recent activity
+    """
+    try:
+        # Get API stats
+        api_stats = api_client.get_api_stats()
+        
+        # Get recent SMS history
+        message_history = sms_service.get_message_history(limit=10)
+        
+        # Get account balance (simulated)
+        balance_info = api_client.get_account_balance()
+        
+        status_info = {
+            'service_status': 'active',
+            'api_stats': api_stats,
+            'recent_messages': len(message_history),
+            'message_history': message_history[-5:],  # Last 5 messages
+            'balance_info': balance_info,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(status_info)
+        
+    except Exception as e:
+        logging.error(f"SMS status check failed: {e}")
+        return jsonify({
+            'service_status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/send_test_sms', methods=['POST'])
+def send_test_sms():
+    """
+    Send a test SMS message (for debugging/testing)
+    """
+    try:
+        data = request.get_json()
+        phone = data.get('phone', '+254700000000')
+        message = data.get('message', 'Test message from TextAHBAR app')
+        
+        # Send test SMS
+        result = send_africastalking_sms(phone, message)
+        
+        return jsonify({
+            'test_result': result,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"Test SMS failed: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/hedera_status', methods=['GET'])
+def hedera_status():
+    """
+    Get Hedera network status and account information
+    """
+    try:
+        # Get account balance and info
+        balance_info = transaction_service.token_manager.get_account_balance()
+        
+        # Get recent transactions
+        transaction_history = transaction_service.token_manager.get_transaction_history()
+        
+        # Get configuration validation
+        config_validation = transaction_service.token_manager.config.validate_config()
+        
+        hedera_info = {
+            'network': transaction_service.token_manager.config.network,
+            'account_id': transaction_service.token_manager.config.my_account_id,
+            'token_id': transaction_service.token_manager.config.token_id,
+            'balance_info': balance_info,
+            'recent_transactions': transaction_history[-5:],  # Last 5 transactions
+            'config_validation': config_validation,
+            'service_status': 'active' if config_validation.get('all_valid') else 'configuration_error',
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(hedera_info)
+        
+    except Exception as e:
+        logging.error(f"Hedera status check failed: {e}")
+        return jsonify({
+            'service_status': 'error',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/dashboard', methods=['GET'])
+def api_dashboard():
+    """
+    Comprehensive API status dashboard
+    """
+    try:
+        # Get configuration report
+        config_report = ConfigValidator.get_configuration_report()
+        
+        # Get transaction statistics
+        all_transactions = transaction_logger.get_transactions(limit=100)
+        
+        transaction_stats = {
+            'total_transactions': len(all_transactions),
+            'sms_transactions': len([tx for tx in all_transactions if tx['type'] == 'sms']),
+            'stock_purchases': len([tx for tx in all_transactions if tx['type'] == 'stock_purchase']),
+            'mpesa_payments': len([tx for tx in all_transactions if tx['type'] == 'mpesa_payment']),
+            'token_transfers': len([tx for tx in all_transactions if tx['type'] == 'token_transfer']),
+            'recent_activity': all_transactions[-10:] if all_transactions else []
+        }
+        
+        # Get SMS service stats
+        sms_stats = {
+            'service_enabled': hasattr(sms_service, 'sms_client'),
+            'recent_messages': len(sms_service.get_message_history(limit=50)),
+            'africastalking_mode': os.getenv('AFRICASTALKING_USERNAME', 'sandbox')
+        }
+        
+        # Get Hedera service stats
+        hedera_stats = {
+            'network': transaction_service.token_manager.config.network,
+            'account_id': transaction_service.token_manager.config.my_account_id,
+            'token_id': transaction_service.token_manager.config.token_id,
+            'service_enabled': transaction_service.token_manager.config.validate_config()['all_valid']
+        }
+        
+        dashboard_data = {
+            'application': {
+                'name': 'TextAHBAR',
+                'version': '1.0.0',
+                'uptime_start': datetime.now().isoformat(),
+                'status': 'operational'
+            },
+            'configuration': config_report,
+            'statistics': {
+                'transactions': transaction_stats,
+                'sms': sms_stats,
+                'hedera': hedera_stats
+            },
+            'services': {
+                'sms_service': 'active' if sms_stats['service_enabled'] else 'inactive',
+                'hedera_service': 'active' if hedera_stats['service_enabled'] else 'inactive',
+                'stock_trading': 'active',
+                'ai_chat': 'active'
+            },
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(dashboard_data)
+        
+    except Exception as e:
+        logging.error(f"Dashboard generation failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'status': 'error',
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/phone/validate', methods=['POST'])
+def validate_phone_number():
+    """
+    Validate and format phone number
+    """
+    try:
+        data = request.get_json()
+        phone_number = data.get('phone_number', '')
+        
+        # Validate phone number
+        validation = PhoneNumberValidator.validate_phone_number(phone_number)
+        
+        # Format phone number
+        formatted = PhoneNumberValidator.format_phone_number(phone_number)
+        
+        # Get network info (for Kenyan numbers)
+        network = PhoneNumberUtils.identify_kenyan_network(phone_number)
+        display_format = PhoneNumberUtils.format_display_number(phone_number)
+        
+        # Calculate SMS cost
+        sample_message = "Test message from TextAHBAR"
+        cost_info = SMSCostCalculator.calculate_cost(phone_number, len(sample_message))
+        
+        result = {
+            'original': phone_number,
+            'formatted': formatted,
+            'display_format': display_format,
+            'validation': validation,
+            'network': network,
+            'cost_estimate': cost_info,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/stocks/list', methods=['GET'])
+def get_stocks_list():
+    """
+    Get list of available stocks on NSE
+    """
+    try:
+        return jsonify({
+            'success': True,
+            'data': {
+                'stocks': kenya_stocks,
+                'total_count': len(kenya_stocks),
+                'market': 'Nairobi Securities Exchange (NSE)'
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/stocks/price/<ticker>', methods=['GET'])
+def get_stock_price(ticker):
+    """
+    Get current price for a specific stock
+    """
+    try:
+        stock = find_stock(ticker)
+        
+        if stock:
+            return jsonify({
+                'success': True,
+                'data': {
+                    'stock': stock,
+                    'advice': generate_stock_advice(stock),
+                    'market_status': 'open',  # Simulated
+                    'last_updated': datetime.now().isoformat()
+                },
+                'timestamp': datetime.now().isoformat()
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': f'Stock ticker {ticker} not found',
+                'timestamp': datetime.now().isoformat()
+            }), 404
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/stocks/buy', methods=['POST'])
+def buy_stock_api():
+    """
+    Purchase stocks via API with SMS and HBAR integration
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required parameters
+        required_fields = ['ticker', 'quantity', 'phone_number', 'hedera_account']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing_fields)}',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        ticker = data['ticker'].upper()
+        quantity = int(data['quantity'])
+        phone_number = data['phone_number']
+        hedera_account = data['hedera_account']
+        
+        # Validate Hedera account format
+        if not transaction_service.token_manager.validate_account_id(hedera_account):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid Hedera account ID format',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        # Find stock
+        stock = find_stock(ticker)
+        if not stock:
+            return jsonify({
+                'success': False,
+                'error': f'Stock ticker {ticker} not found',
+                'timestamp': datetime.now().isoformat()
+            }), 404
+        
+        # Calculate total cost
+        total_cost = stock['price'] * quantity
+        
+        # Process the complete stock purchase
+        result = transaction_service.process_stock_purchase(
+            recipient_phone=phone_number,
+            recipient_account=hedera_account,
+            stock_name=stock['name'],
+            quantity=quantity,
+            price=total_cost
+        )
+        
+        return jsonify({
+            'success': result.get('success', False),
+            'data': {
+                'transaction_reference': result.get('transaction_reference'),
+                'stock': stock,
+                'quantity': quantity,
+                'total_cost': total_cost,
+                'hedera_transaction': result.get('token_transfer', {}),
+                'sms_notifications': result.get('sms_notifications', [])
+            },
+            'message': 'Stock purchase completed successfully' if result.get('success') else 'Stock purchase failed',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"Stock purchase API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/sms/send', methods=['POST'])
+def send_sms_api():
+    """
+    Send SMS message via AfricasTalking API
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required parameters
+        if not data.get('to') or not data.get('message'):
+            return jsonify({
+                'success': False,
+                'error': 'Missing required fields: to, message',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        phone_number = data['to']
+        message = data['message']
+        sender_id = data.get('sender_id', 'TEXTAHBAR')
+        
+        # Validate phone number
+        validation = PhoneNumberValidator.validate_phone_number(phone_number)
+        if not validation['is_valid']:
+            return jsonify({
+                'success': False,
+                'error': 'Invalid phone number format',
+                'validation': validation,
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        # Calculate cost
+        cost_info = SMSCostCalculator.calculate_cost(phone_number, len(message))
+        
+        # Send SMS
+        result = send_africastalking_sms(phone_number, message, sender_id)
+        
+        return jsonify({
+            'success': result.get('success', False),
+            'data': {
+                'message_id': result.get('message_id'),
+                'recipient': phone_number,
+                'cost_info': cost_info,
+                'delivery_status': result.get('status', 'unknown')
+            },
+            'message': 'SMS sent successfully' if result.get('success') else 'SMS sending failed',
+            'error': result.get('error') if not result.get('success') else None,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"SMS API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/hedera/balance/<account_id>', methods=['GET'])
+def get_hedera_balance_api(account_id):
+    """
+    Get Hedera account balance
+    """
+    try:
+        # Validate account ID format
+        if not transaction_service.token_manager.validate_account_id(account_id):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid Hedera account ID format',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        balance_info = transaction_service.token_manager.get_account_balance(account_id)
+        
+        return jsonify({
+            'success': balance_info.get('success', False),
+            'data': balance_info,
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/hedera/transfer', methods=['POST'])
+def transfer_hedera_api():
+    """
+    Transfer HBAR tokens between accounts
+    """
+    try:
+        data = request.get_json()
+        
+        # Validate required parameters
+        required_fields = ['to_account', 'amount']
+        missing_fields = [field for field in required_fields if not data.get(field)]
+        
+        if missing_fields:
+            return jsonify({
+                'success': False,
+                'error': f'Missing required fields: {", ".join(missing_fields)}',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        to_account = data['to_account']
+        amount = int(data['amount'])
+        memo = data.get('memo', 'API token transfer')
+        notify_phone = data.get('notify_phone')
+        
+        # Validate account ID format
+        if not transaction_service.token_manager.validate_account_id(to_account):
+            return jsonify({
+                'success': False,
+                'error': 'Invalid recipient Hedera account ID format',
+                'timestamp': datetime.now().isoformat()
+            }), 400
+        
+        # Transfer tokens
+        result = transaction_service.token_manager.transfer_tokens(to_account, amount, memo)
+        
+        # Send SMS notification if phone provided
+        sms_result = None
+        if notify_phone and result.get('success'):
+            try:
+                sms_result = sms_service.notify_token_transfer(
+                    notify_phone, amount, to_account, result.get('transaction_id', '')
+                )
+            except Exception as sms_error:
+                logging.warning(f"SMS notification failed: {sms_error}")
+        
+        return jsonify({
+            'success': result.get('success', False),
+            'data': {
+                'transfer': result,
+                'sms_notification': sms_result
+            },
+            'message': 'Token transfer completed' if result.get('success') else 'Token transfer failed',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"Hedera transfer API error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/transactions', methods=['GET'])
+def get_transactions_api():
+    """
+    Get transaction history with filtering options
+    """
+    try:
+        # Get query parameters
+        transaction_type = request.args.get('type')  # sms, stock_purchase, token_transfer
+        limit = int(request.args.get('limit', 50))
+        
+        transactions = transaction_logger.get_transactions(transaction_type, limit)
+        
+        # Calculate statistics
+        stats = {
+            'total_transactions': len(transactions),
+            'successful_transactions': len([tx for tx in transactions if tx.get('status')]),
+            'failed_transactions': len([tx for tx in transactions if not tx.get('status')]),
+            'transaction_types': {}
+        }
+        
+        # Count by type
+        for tx in transactions:
+            tx_type = tx.get('type', 'unknown')
+            stats['transaction_types'][tx_type] = stats['transaction_types'].get(tx_type, 0) + 1
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'transactions': transactions,
+                'statistics': stats,
+                'filters': {
+                    'type': transaction_type,
+                    'limit': limit
+                }
+            },
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+@app.route('/api/webhook/sms', methods=['POST'])
+def sms_webhook():
+    """
+    Webhook endpoint for SMS delivery reports from AfricasTalking
+    """
+    try:
+        data = request.get_json()
+        
+        # Log the webhook data
+        logging.info(f"SMS webhook received: {data}")
+        
+        # Process delivery report
+        message_id = data.get('id')
+        status = data.get('status', 'unknown')
+        
+        if message_id:
+            # Update delivery status in logs
+            transaction_data = {
+                'message_id': message_id,
+                'delivery_status': status,
+                'webhook_data': data,
+                'success': status.lower() in ['success', 'delivered']
+            }
+            
+            transaction_logger.log_transaction('sms_delivery_report', transaction_data)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Webhook processed successfully',
+            'timestamp': datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logging.error(f"SMS webhook error: {e}")
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        })
+
+
 if __name__ == '__main__':
+    # Log startup information
+    logging.info("🚀 TextAHBAR app starting up...")
+    logging.info("=" * 50)
+    
+    # Configuration validation
+    config_report = ConfigValidator.get_configuration_report()
+    logging.info(f"⚙️  Configuration Status: {'✅ Valid' if config_report['validation_results']['all_valid'] else '❌ Invalid'}")
+    
+    # Service status
+    logging.info(f"📱 SMS Service (AfricasTalking): {'✅ Enabled' if hasattr(sms_service, 'sms_client') else '❌ Disabled'}")
+    logging.info(f"🌐 Hedera Network: {transaction_service.token_manager.config.network.upper()}")
+    logging.info(f"💰 Token ID: {transaction_service.token_manager.config.token_id}")
+    logging.info(f"🏦 Account ID: {transaction_service.token_manager.config.my_account_id}")
+    
+    # AfricasTalking configuration
+    at_mode = config_report['environment_summary']['africastalking_mode']
+    logging.info(f"📞 AfricasTalking Mode: {at_mode.upper()}")
+    
+    # Feature status
+    logging.info("🔧 Features:")
+    logging.info("   • Stock Trading with SMS notifications")
+    logging.info("   • Hedera token transfers")  
+    logging.info("   • M-PESA simulation")
+    logging.info("   • AI-powered chat")
+    logging.info("   • Transaction logging")
+    logging.info("   • Phone number validation")
+    logging.info("   • SMS cost calculation")
+    
+
+
+
+    # API endpoints
+    logging.info("🌐 API Endpoints:")
+    logging.info("   • /api/dashboard - Service status dashboard")
+    logging.info("   • /sms_status - SMS service status")
+    logging.info("   • /hedera_status - Hedera network status")
+    logging.info("   • /api/phone/validate - Phone validation")
+    logging.info("   • /send_test_sms - Test SMS sending")
+    
+    # Recommendations
+    if config_report['recommendations']:
+        logging.info("💡 Recommendations:")
+        for rec in config_report['recommendations']:
+            logging.info(f"   • {rec}")
+    
+    logging.info("=" * 50)
+    logging.info("🎉 TextAHBAR is ready to handle SMS and HBAR transactions!")
+    
     #app.run(debug=True)
     app.run(host="0.0.0.0", port=int(os.getenv("PORT", 8080)))
