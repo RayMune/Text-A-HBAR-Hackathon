@@ -199,12 +199,12 @@ graph LR
     D --> E[🏦 NSE Settlement]
     E --> F[📲 Confirmation]
     
-    style A fill:#FFE5B4
-    style B fill:#D4EDDA
-    style C fill:#FFF3CD
-    style D fill:#E1ECFF
-    style E fill:#F8D7DA
-    style F fill:#D1ECF1
+    style A fill:#FF7F50,stroke:#333,stroke-width:2px,color:#000
+    style B fill:#32CD32,stroke:#333,stroke-width:2px,color:#000
+    style C fill:#FFD700,stroke:#333,stroke-width:2px,color:#000
+    style D fill:#9370DB,stroke:#333,stroke-width:2px,color:#FFF
+    style E fill:#FF6347,stroke:#333,stroke-width:2px,color:#FFF
+    style F fill:#20B2AA,stroke:#333,stroke-width:2px,color:#FFF
 ```
 
 **⏱️ Traditional Trading**: Days • Complex Forms • High Fees  
@@ -343,11 +343,16 @@ graph TB
     MPESA --> API
     API --> DB
     
-    style SMS fill:#FFE5B4
-    style AI fill:#D4EDDA
-    style HEDERA fill:#E1ECFF
-    style NSE fill:#FFF3CD
-    style API fill:#F8D7DA
+    style SMS fill:#FF7F50,stroke:#333,stroke-width:2px,color:#000
+    style USSD fill:#FF7F50,stroke:#333,stroke-width:2px,color:#000
+    style AI fill:#32CD32,stroke:#333,stroke-width:2px,color:#000
+    style NLP fill:#32CD32,stroke:#333,stroke-width:2px,color:#000
+    style HEDERA fill:#9370DB,stroke:#333,stroke-width:2px,color:#FFF
+    style WALLET fill:#9370DB,stroke:#333,stroke-width:2px,color:#FFF
+    style NSE fill:#FFD700,stroke:#333,stroke-width:2px,color:#000
+    style MPESA fill:#FFD700,stroke:#333,stroke-width:2px,color:#000
+    style API fill:#FF6347,stroke:#333,stroke-width:2px,color:#FFF
+    style DB fill:#FF6347,stroke:#333,stroke-width:2px,color:#FFF
 ```
 
 </div>
