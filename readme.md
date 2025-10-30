@@ -39,7 +39,7 @@
 
 ## 📊 Pitch Deck
 
-<img src="https://img.shields.io/badge/📈%20Pitch%20Deck%20Available-FF6B35?style=for-the-badge&logo=microsoft-powerpoint&logoColor=white"/>
+<img src="https://img.shields.io/badge/📈%20Pitch%20Deck%20Available%20Below-FF6B35?style=for-the-badge&logo=microsoft-powerpoint&logoColor=white"/>
 
 **Tokenized Stocks — Text by Text** transforming access to the Nairobi Securities Exchange through tokenization and SMS-powered investing.
 
