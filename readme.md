@@ -43,14 +43,13 @@
 
 **Tokenized Stocks — Text by Text** transforming access to the Nairobi Securities Exchange through tokenization and SMS-powered investing.
 
-🎯 **[📥 Download Pitch Deck](./Text-A-HBAR.pptx)** • 📊 PowerPoint Presentation  
+🎯 **[📥 View Interactive Pitch Deck Online](https://view.officeapps.live.com/op/view.aspx?src=https%3A%2F%2Fraw.githubusercontent.com%2FRayMune%2FText-A-HBAR-Hackathon%2Frefs%2Fheads%2Fmain%2FText-A-HBAR.pptx&wdOrigin=BROWSELINK)** • 📊 PowerPoint Presentation  
 *Complete overview: Problem → Solution → Market → Technology → Roadmap*
 
 ---
 
 ## 🎥 Live Demo
 
-<img src="https://img.shields.io/badge/🎬%20Live%20Demo%20Available-FF0000?style=for-the-badge&logo=youtube&logoColor=white"/>
 
 **See Text-A-HBAR in action**: SMS → Stock Purchase → Hedera Tokenization → Portfolio Management
 
