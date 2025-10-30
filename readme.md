@@ -54,7 +54,7 @@
 **See Text-A-HBAR in action**: SMS → Stock Purchase → Hedera Tokenization → Portfolio Management
 
 ▶️ **[🎥 Watch Demo on YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**  
-*2-minute walkthrough of our revolutionary SMS-to-blockchain trading system*
+*3-minute walkthrough of our revolutionary SMS-to-blockchain trading system*
 
 <img src="https://img.shields.io/badge/Demo%20Features-Safaricom%20Stock%20Purchase%20|%20M--Pesa%20Integration%20|%20Hedera%20Testnet%20|%20Real--time%20SMS-success?style=flat-square"/>
 
@@ -309,8 +309,75 @@ Ownership confirmed
 </div>
 
 ---
-
 <div align="center">
+
+
+
+
+### 🪙 Hedera Integration Summary (Detailed)
+1. Hedera Token Service (HTS) — Tokenized Nairobi Securities Exchange
+
+Why:
+We chose the Hedera Token Service (HTS) to tokenize real-world NSE-listed companies such as Safaricom PLC into digital share tokens. HTS provides native tokenization with low, predictable transaction fees and no need for custom smart contracts. This is crucial for our goal of democratizing access to investment opportunities across Africa, where affordability and reliability are key.
+
+Transaction Types:
+
+TokenCreateTransaction — to define and mint NSE-backed tokens.
+
+TokenAssociateTransaction — to link investor accounts with specific stock tokens.
+
+TransferTransaction — to handle peer-to-peer transfers of tokenized shares between users.
+
+Economic Justification:
+Each token transfer on Hedera costs approximately $0.0001 USD, ensuring cost-effective micro-investments. Compared to Ethereum’s unpredictable gas fees, Hedera’s fee model enables stable operating margins, allowing users to buy stocks worth as little as $1 without being burdened by high transaction costs.
+
+
+
+2. Hedera Consensus Service (HCS) — Immutable Trade Ledger
+
+Why:
+We implemented HCS to maintain a tamper-proof, timestamped record of all buy/sell transactions and token deliveries. This ensures full transparency for regulatory compliance and investor trust. With Hedera’s asynchronous Byzantine Fault Tolerant (aBFT) consensus, every transaction is cryptographically ordered and verified without relying on intermediaries.
+
+Transaction Types:
+
+TopicCreateTransaction — to initiate a secure communication topic for recording transactions.
+
+TopicMessageSubmitTransaction — to append each buy/sell or transfer event to the immutable ledger.
+
+Economic Justification:
+Each consensus message costs about $0.0001 USD, enabling large-scale transaction logging (millions of entries) at negligible cost. This creates an immutable audit trail for regulators and users, fostering transparency and confidence in tokenized securities — a must for digital capital markets in Africa.
+
+
+
+3. Hedera Account Service — Wallet-Lite User Experience
+
+Why:
+Hedera’s Account Service enables lightweight custodial wallets where users can transact using only their phone number and a simple PIN. We abstract away the complexity of private key management through backend-assisted account creation on Testnet, bridging non-crypto users into Web3 via SMS.
+
+Transaction Types:
+
+AccountCreateTransaction — to generate new wallet accounts for SMS-based users.
+
+CryptoTransferTransaction — to facilitate HBAR transfers for transaction fees.
+
+Economic Justification:
+Account creation and HBAR microtransactions remain under $0.05 USD per user, allowing sustainable onboarding of thousands of users during pilot phases. Predictable costs and high throughput (10,000+ TPS) make Hedera ideal for supporting nationwide adoption without scalability bottlenecks.
+
+
+
+4. Hedera Mirror Nodes — AI-Powered Stock Insights
+
+Why:
+Mirror Nodes are leveraged to fetch and analyze real-time transaction data, which our AI chatbot uses to generate live insights about NSE token performance and user activity. This integration ensures every response and insight is verifiable against blockchain-backed data, guaranteeing data integrity for financial analytics.
+
+Transaction Types:
+
+Mirror Query API calls for reading token balances, transfers, and topic messages.
+
+Economic Justification:
+Mirror Node queries are free to access and hosted off-chain, meaning we can deliver real-time analytics without incurring extra operational costs. This is vital for sustainability and allows our AI system to scale as user demand grows.
+
+---
 
 ## 🏗️ Technical Architecture
 
