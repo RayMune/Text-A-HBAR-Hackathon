@@ -58,6 +58,17 @@
 
 <img src="https://img.shields.io/badge/Demo%20Features-Safaricom%20Stock%20Purchase%20|%20M--Pesa%20Integration%20|%20Hedera%20Testnet%20|%20Real--time%20SMS-success?style=flat-square"/>
 
+---
+
+## 🎓 Developer Certificate
+
+<img src="https://img.shields.io/badge/🎓%20Hedera%20Certified%20Developer-9370DB?style=for-the-badge&logo=hashnode&logoColor=white"/>
+
+**Hedera Hashgraph Developer Course Certificate** - Demonstrating expertise in building on the Hedera network.
+
+📜 **[View Certificate](546ae8ca-d9d2-42c0-b40d-ae2aed7610c6%20(1).pdf)** • 🎯 Official Hedera Certification  
+*Certified in Hedera development, tokenization, and smart contract deployment*
+
 </div>
 
 ---
