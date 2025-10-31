@@ -36,7 +36,8 @@
 ---
 
 <div align="center">
-
+This is not just the best project in the hedera Africa hackathon but a pillar of Africa's growth & future  
+    
 ## 📊 Pitch Deck
 
 <img src="https://img.shields.io/badge/📈%20Pitch%20Deck%20Available%20Below-FF6B35?style=for-the-badge&logo=microsoft-powerpoint&logoColor=white"/>
