@@ -54,7 +54,7 @@ This is not just the best project in the hedera Africa hackathon but a pillar of
 
 **See Text-A-HBAR in action**: SMS → Stock Purchase → Hedera Tokenization → Portfolio Management
 
-▶️ **[🎥 Watch Demo on YouTube](https://www.youtube.com/watch?v=YOUR_VIDEO_ID)**  
+▶️ **[🎥 Watch Demo on YouTube](https://youtu.be/eQH60YXfYn4)**  
 *3-minute walkthrough of our revolutionary SMS-to-blockchain trading system*
 
 <img src="https://img.shields.io/badge/Demo%20Features-Safaricom%20Stock%20Purchase%20|%20M--Pesa%20Integration%20|%20Hedera%20Testnet%20|%20Real--time%20SMS-success?style=flat-square"/>
